@@ -1,0 +1,12 @@
+flax 
+jax 
+numpy 
+optax 
+networkx 
+matplotlib 
+jgraph 
+torch 
+pandas 
+pandapower 
+scikit-learn
+numba
