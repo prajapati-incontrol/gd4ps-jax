@@ -1,10 +1,11 @@
 import logging 
 import argparse 
+from flax import nnx 
 
 # from src.model.graph_model import NEGATRegressorJAX
 from src.dataset.custom_dataset import CustomDataset
 from utils import setup_logging, initialize_network, load_sampled_input_data, dataset_splitter, get_device
-
+from src.model.graph_model import NEGATRegressorJAX
 
 
 log_it = True 
@@ -44,9 +45,9 @@ def main():
     train_loader, val_loader, test_loader = dataset_splitter(dataset,
                                                              batch_size=args.batch_size)
 
-    batch = next(iter(train_loader))
-    print(batch[0].edge_index)
-    exit()
+    # batch = next(iter(train_loader))
+    # print(batch[0].edge_index)
+    # exit()
     # print(len(test_loader))
     # print(len(train_loader))
     # print(len(val_loader))
@@ -58,7 +59,7 @@ def main():
     edge_out_features = 32
     list_node_hidden_features = [32]
     list_edge_hidden_features = [32]
-    k_hop_node = 1 
+    k_hop_node = 2 
     k_hop_edge = 1
     gat_out_features = 64
     gat_head = 1
@@ -72,15 +73,13 @@ def main():
                             edge_output_features=edge_out_features,
                             k_hop_edge=k_hop_edge,
                             gat_out_features=gat_out_features,
-                            gat_head=gat_head,  
-                            device=device,
+                            gat_head=gat_head, 
+                            rngs=nnx.Rngs(0),
                             )
+    
+    print(nnx.display(model))
 
-    
 
-    
-    
-    
 
 
 

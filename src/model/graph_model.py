@@ -1,33 +1,103 @@
-from flax import linen as nn
+from flax import nnx 
 from typing import Literal, List, Tuple
 from torch_geometric.data import Data
 import jax.numpy as jnp 
 import torch 
 import jax 
+from jax.typing import ArrayLike
 
-class NEGATRegressorJAX(nn.Module):
-    num_node_input_dim: int
-    num_list_node_hidden_dim: List[int] # dynamic layer adding and removing
-    num_node_output_dim: int 
-    k_hop_node: int 
-    num_edge_input_dim: int 
-    num_list_edge_hidden_dim: List[int] 
-    num_edge_output_dim: int 
-    k_hop_edge: int 
-    gat_out_dim: int 
-    gat_num_head: int 
-    bias: bool = True 
-    device: Literal['cuda','cpu','mps'] = 'cpu'
-    
-    def __setup__(self):
-        self.matrices = [
-            self.param(
-                f"W_{i}",
-                lambda rng, shape: jax.random.normal(rng, shape),
-                (self.input_dim, self.output_dim)
-            )
-            for i in range(self.num_layers)
-        ]
+class GATConvJax(nnx.Module): 
+    def __init__(self, 
+                 in_channels: int, 
+                 out_channels: int, 
+                 heads: int, 
+                 edge_dim: int, 
+                 rngs: nnx.Rngs):
+        return None
+
+    def __call__(self, 
+                 x: ArrayLike,
+                 jnp_edge_index: ArrayLike, 
+                 edge_attr: ArrayLike,
+                 ):
+        
+        raise NotImplementedError 
+        return None
+
+
+class NEGATRegressorJAX(nnx.Module):
+    def __init__(self, 
+                 node_input_features: int, 
+                 list_node_hidden_features: List[int], 
+                 node_out_features: int, 
+                 k_hop_node: int,  
+                 edge_input_features: int, 
+                 edge_output_features: int, 
+                 k_hop_edge: int, 
+                 list_edge_hidden_features: list, 
+                 gat_out_features: int, 
+                 gat_head: int, 
+                 rngs: nnx.Rngs,
+                 bias: bool = True,  
+                 adj_norm: bool = True, # normalize the adjacency matrix (recommended)
+    ):
+        self.name = "NEGATRegressorJAX"
+        self.bias = bias 
+        self.gnn_param_matrix = []
+
+        ############ GNN: node regression convolution layers #################
+        self.node_layers = dict()
+
+        in_feats_n = node_input_features 
+
+        if len(list_node_hidden_features) != 0: 
+            for idx, hid_feats_n in enumerate(list_node_hidden_features): 
+                self.node_layers[idx] = [nnx.Linear(in_features=in_feats_n, 
+                                                  out_features=hid_feats_n, 
+                                                  rngs=rngs) for _ in range(k_hop_node)]
+                in_feats_n = hid_feats_n
+        else: 
+            hid_feats_n = in_feats_n
+        
+        self.fcnn_node = nnx.Linear(hid_feats_n, node_out_features, rngs=rngs)
+
+        ###### SCNN: edge-regression convolution layers ######
+        self.edge_layers = dict()
+        self.edge_biases = []
+
+        in_feats_e = edge_input_features 
+
+        # add bias to SCNN as a whole following the equations 
+        if len(list_edge_hidden_features) != 0: 
+            for idx, hid_feats_e in enumerate(list_edge_hidden_features): 
+                self.edge_layers[idx] = [[nnx.Linear(in_features=in_feats_e, 
+                                                    out_features=hid_feats_e, 
+                                                    rngs=rngs, 
+                                                    use_bias=False),
+                                        nnx.Linear(in_features=in_feats_e, 
+                                                    out_features=hid_feats_e, 
+                                                    rngs=rngs, 
+                                                    use_bias=False)] for _ in range(k_hop_edge)]
+                if bias: 
+                    self.edge_biases.append(nnx.Param(jnp.zeros((hid_feats_e,))))
+                else: 
+                    self.edge_biases.append(None)
+                in_feats_e = hid_feats_e 
+        else: 
+            hid_feats_e = in_feats_e
+
+        self.fcnn_edge = nnx.Linear(hid_feats_e, edge_output_features, rngs=rngs)
+
+        ############### Custom GATConv ##########################################
+        self.gatconv_jax = GATConvJax(in_channels=node_out_features, 
+                                      out_channels=gat_out_features, 
+                                      heads=gat_head, 
+                                      edge_dim=edge_output_features)
+
+
+
+
+
 
 
 
