@@ -10,3 +10,5 @@ pandas
 pandapower 
 scikit-learn
 numba
+equinox 
+jaxtyping
