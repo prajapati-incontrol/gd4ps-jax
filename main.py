@@ -1,11 +1,12 @@
 import logging 
 import argparse 
 from flax import nnx 
+import jax 
 
 # from src.model.graph_model import NEGATRegressorJAX
 from src.dataset.custom_dataset import CustomDataset
 from utils import setup_logging, initialize_network, load_sampled_input_data, dataset_splitter, get_device
-from src.model.graph_model import NEGATRegressorJAX
+from src.model.graph_model import GATConvJax
 
 
 log_it = True 
@@ -64,18 +65,12 @@ def main():
     gat_out_features = 64
     gat_head = 1
 
-    model = NEGATRegressorJAX(node_input_features=dataset[0][0].x.shape[1],
-                            list_node_hidden_features=list_node_hidden_features,
-                            node_out_features=node_out_features,
-                            k_hop_node=k_hop_node,
-                            edge_input_features=dataset[0][1].x.shape[1],
-                            list_edge_hidden_features=list_edge_hidden_features,
-                            edge_output_features=edge_out_features,
-                            k_hop_edge=k_hop_edge,
-                            gat_out_features=gat_out_features,
-                            gat_head=gat_head, 
-                            rngs=nnx.Rngs(0),
-                            )
+
+    model = GATConvJax(in_channels=dataset[0][0].x.shape[1], 
+                       out_channels=node_out_features, 
+                       heads=2, 
+                       edge_dim=dataset[0][1].x.shape[1], 
+                       rngs=nnx.Rngs(jax.random.key(42)))
     
     print(nnx.display(model))
 

@@ -18,23 +18,36 @@ class GATConvJax(nnx.Module):
         self.out_channels = out_channels
         self.in_channels = in_channels
         self.heads = heads
-        
-        rngs = rngs.spawn(['W', 'W_e', 'a_s', 'a_t', 'a_e', 'b_GAT'])
 
-        
+        # Initialize the main RNG key
+        rng = jax.random.PRNGKey(0)
+
+        # Split the main RNG key into subkeys for each parameter
+        rng_W, rng_W_e, rng_a_s, rng_a_t, rng_a_e, rng_b_GAT = jax.random.split(rng, 6)
+
+        # Now, use these subkeys to initialize the parameters
+        self.W = nnx.Param(jax.random.normal(rng_W, (heads, in_channels, out_channels)))
+        self.W_e = nnx.Param(jax.random.normal(rng_W_e, (heads, edge_dim, out_channels)))
+        self.a_s = nnx.Param(jax.random.normal(rng_a_s, (heads, out_channels)))
+        self.a_t = nnx.Param(jax.random.normal(rng_a_t, (heads, out_channels)))
+        self.a_e = nnx.Param(jax.random.normal(rng_a_e, (heads, out_channels)))
+        self.b_GAT = nnx.Param(jax.random.normal(rng_b_GAT, (heads, out_channels)))
+
+
+        # sub_rngs = rngs.spawn(['W', 'W_e', 'a_s', 'a_t', 'a_e', 'b_GAT'])
 
         # shared parameter matrices (no bias) 
-        self.W = nnx.Param(jax.random.normal(rngs['W'], (heads, in_channels, out_channels)))
+        # self.W = nnx.Param(jax.random.normal(rngs['W'], (heads, in_channels, out_channels)))
         
-        self.W_e = nnx.Param(jax.random.normal(rngs['W_e'], (heads, edge_dim, out_channels)))
+        # self.W_e = nnx.Param(jax.random.normal(rngs['W_e'], (heads, edge_dim, out_channels)))
         
-        self.a_s = nnx.Param(jax.random.normal(rngs['a_s'], (heads, out_channels)))
+        # self.a_s = nnx.Param(jax.random.normal(rngs['a_s'], (heads, out_channels)))
         
-        self.a_t = nnx.Param(jax.random.normal(rngs['a_t'], (heads, out_channels)))
+        # self.a_t = nnx.Param(jax.random.normal(rngs['a_t'], (heads, out_channels)))
         
-        self.a_e = nnx.Param(jax.random.normal(rngs['a_e'], (heads, out_channels,)))
+        # self.a_e = nnx.Param(jax.random.normal(rngs['a_e'], (heads, out_channels,)))
         
-        self.b_GAT = nnx.Param(jax.random.normal(rngs['b_GAT'], (heads, out_channels,)))
+        # self.b_GAT = nnx.Param(jax.random.normal(rngs['b_GAT'], (heads, out_channels,)))
 
     def __call__(self, 
                  x: ArrayLike, # shape: [num_nodes, in_channeles]
@@ -43,29 +56,64 @@ class GATConvJax(nnx.Module):
                  ) -> jnp.ndarray:
         
         N = x.shape[0] # num_nodes
+        nodes = jnp.unique(edge_index)
         E = edge_index.shape[1] # num_edges 
         H = self.heads 
         C_out = self.out_channels
 
         
-        row, col = edge_index  # row: sources, col: targets
-        uq_src, uq_tgt = jnp.unique(row), jnp.unique(col)
+        row, col = edge_index.T  # row: sources, col: targets
 
-        x_src = x[uq_src]  # shape: [E, in_channels]
-        x_tgt = x[uq_tgt]  # shape: [E, in_channels]
-        e_attr = edge_attr  # shape: [E, edge_dim]
+        x_src = jnp.vstack([x[row], x[col]])  # shape: [2*E, in_channels]
+        x_tgt = jnp.vstack([x[col], x[row]]) # shape: [2*E, in_channels]
+        e_attr = jnp.vstack([edge_attr, edge_attr])  # shape: [2*E, edge_dim]
 
-        x_src_proj = jnp.einsum('hio,si->hso', self.W, x_src)   # [H, E, C_out]
-        x_tgt_proj = jnp.einsum('hio,ti->hto', self.W, x_tgt)   # [H, E, C_out]
-        e_proj = jnp.einsum('hdo,ed->heo', self.W_e, e_attr)    # [H, E, C_out]
+        x_src_proj = jnp.einsum('hio,si->hso', self.W, x_src)
+        x_tgt_proj = jnp.einsum('hio,ti->hto', self.W, x_tgt)
+        e_proj = jnp.einsum('hdo,ed->heo', self.W_e, e_attr)
 
         ax_src_proj = jnp.einsum('ho,hso->hs', self.a_s, x_src_proj)
         ax_tgt_proj = jnp.einsum('ho,hto->ht', self.a_t, x_tgt_proj)
         ae_proj = jnp.einsum('ho,heo->he', self.a_e, e_proj)
 
+        logits = jax.nn.leaky_relu(ax_src_proj + ax_tgt_proj + ae_proj).flatten()
+
+        edge_lists = jnp.vstack([
+            jnp.stack([row, col], axis=1),
+            jnp.stack([col, row], axis=1)
+        ])  # shape: [2*E, 2]
+
+        # Convert edge_list rows to tuples of Python ints
+        edge_keys = [tuple(map(int, edge)) for edge in edge_lists]
+
+        # Then zip with logits
+        edge_to_logit = {
+            edge: logit for edge, logit in zip(edge_keys, logits)
+        }
+
+        neighbor_dict = {int(n): [] for n in nodes}
+        for src, tgt in edge_index: 
+            neighbor_dict[int(src)].append((int(src), int(tgt)))
+            neighbor_dict[int(tgt)].append((int(tgt), int(src)))
+
+
+        attention_adjacency = jnp.zeros((N, N))
+        for src in nodes: 
+            # all edges corresponding to src 
+            src_edges = neighbor_dict[int(src)]
+            corr_logits = jnp.array([edge_to_logit[src_edge] for src_edge in src_edges])
+            src_softmax = jax.nn.softmax(corr_logits)
+
+            for i, src_edge in enumerate(src_edges):
+                u, v = src_edge
+                # print(u,v, src_softmax[i]) 
+                attention_adjacency = attention_adjacency.at[u,v].set(src_softmax[i])
+
+        # x_gat_output 
+        A_x = attention_adjacency @ x # shape [N, 32]
+        A_x_W = jnp.einsum('hio,ni->hno', self.W, A_x) # x @ W where W is [heads, N, 64]
         
-
-
+        return A_x_W 
 
         ############## LESS EFFICIENT ###################
 
@@ -148,8 +196,6 @@ class NEGATRegressorJAX(nnx.Module):
         self.bias = bias 
         self.gnn_param_matrix = []
 
-        
-
         ############ GNN: node regression convolution layers #################
         self.node_layers = dict()
 
@@ -214,9 +260,6 @@ class NEGATRegressorJAX(nnx.Module):
         L_1u = self.jax_adjacency_matrix(edge_data.edge_index_u, edge_data.edge_attrs2)
 
         ############ gnn based node-regression ############### 
-
-
-
 
     def jax_adjacency_matrix(self, 
                              edge_index: torch.Tensor, 
