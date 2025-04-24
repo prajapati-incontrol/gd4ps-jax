@@ -3,12 +3,12 @@
 This project is open-source version of a private repository for Distribution Power Sytem State Estimation using [JAX](https://github.com/google/jax). It leverages the rich topological structure of power grids, modeled as simplicial complexes, to improve the accuracy and robustness of state estimation models. 
 
 <p align="center">
-  <img src="manimations/p_mw_tag50.gif" width="200" />
-  <img src="manimations/q_mvar_tag50.gif" width="200" />
+  <img src="manimations/p_mw_tag50.gif" width="400" />
+  <img src="manimations/q_mvar_tag50.gif" width="400" />
 </p>
 <p align="center">
-  <img src="manimations/vm_pu_tag50.gif" width="200" />
-  <img src="manimations/va_deg_tag50.gif" width="200" />
+  <img src="manimations/vm_pu_tag50.gif" width="400" />
+  <img src="manimations/va_deg_tag50.gif" width="400" />
 </p>
 
 
