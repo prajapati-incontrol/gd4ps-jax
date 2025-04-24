@@ -1,4 +1,4 @@
-# gd4ps-jax: JAX implementation of Distribution System State-Estimation 
+# JAX implementation of Distribution System State-Estimation 
 
 This project is open-source version of a private repository for Distribution Power Sytem State Estimation using [JAX](https://github.com/google/jax). It leverages the rich topological structure of power grids, modeled as simplicial complexes, to improve the accuracy and robustness of state estimation models. 
 
@@ -46,15 +46,17 @@ pip install -r requirements.txt
 
 ```
 scnn-jax/
-├── data/               # Sample transmission system data and graphs
-├── src/                # Source files 
-       ├── dataset/     # Custom Dataset Object
-       ├── model/       # SCNN models 
-       ├── training/    # Trainer functions 
-├── utils/              # Topology and data processing utilities
-├── main.py             # Orchestrate everything
-├── requirements.txt    # Python dependencies
-└── README.md           # Project documentation
+├── log/                    # log files
+       ├── script_log.txt
+├── data/                   # Sample transmission system data and graphs
+├── src/                    # Source files 
+       ├── dataset/         # Custom Dataset Object
+       ├── model/           # SCNN models 
+       ├── training/        # Trainer functions 
+├── utils.py                # Topology and data processing utilities
+├── main.py                 # Orchestrate everything
+├── requirements.txt        # Python dependencies
+└── README.md               # Project documentation
 ```
 
 ---
