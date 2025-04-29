@@ -4,83 +4,48 @@ from flax import nnx
 import jax 
 
 # from src.model.graph_model import NEGATRegressorJAX
-from src.dataset.custom_dataset import CustomDataset
+from src.dataset.custom_dataset import NodeEdgeDataset
 from utils import setup_logging, initialize_network, load_sampled_input_data, dataset_splitter, get_device
+from utils import load_config 
 from src.model.graph_model import GATConvJax
 
 
-log_it = True 
+def main():
 
-def main(): 
-    parser = argparse.ArgumentParser(description='Train the NEGATRegressor')
-    parser.add_argument("--net_name",type=str, help='Pandapower Network Datastructure',default='TOY')
-    parser.add_argument("--net_pstd",type=str, help="Load p_std to generate data (0.0 means identical training data)",default=0.3)
-    parser.add_argument("--num_samples",type=int, help='Number of Permutations', default=100)
-    parser.add_argument("--noise",type=bool, help='Gaussian noise on PFR?', default=True)
-    parser.add_argument("--batch_size",type=int, help="Batch-size for model training",default=64)
+    config = load_config()
+    device = get_device(config['device']) 
 
-    args = parser.parse_args()
+    print(f"Using device: {device}")
 
-    device = get_device("cpu")
+    net = initialize_network(config['data']['net_name'])
 
-    if log_it: 
-        setup_logging()
-    
-    # initialize network 
-    net = initialize_network(args.net_name)
 
-    # load sampled input data 
-    sampled_input_data = load_sampled_input_data(net=net, 
-                                                 num_samples=args.num_samples, 
-                                                 load_std=args.net_pstd, 
-                                                 noise=args.noise, 
+
+    sampled_input_data = load_sampled_input_data(sc_type=config['data']['scenario_type'], 
+                                                 net=net, 
+                                                 num_samples=config['data']['num_samples'],
+                                                 p_std=config['data']['net_load_std'],
+                                                 noise=config['data']['noise'],
+                                                 trafo_ids=config['data']['trafo_ids'],
+                                                 scaler=config['data']['scaler'],
                                                  )
 
-    # print(sampled_input_data['scaler_node'])
-    # exit()
 
-    # create Custom Dataset 
-    dataset = CustomDataset(sampled_input_data=sampled_input_data)
+    # instantiate the dataset 
+    dataset = NodeEdgeDataset(model_name=config['model']['name'], sampled_input_data=sampled_input_data)
 
-    # dataloader 
-    train_loader, val_loader, test_loader = dataset_splitter(dataset,
-                                                             batch_size=args.batch_size)
 
-    # batch = next(iter(train_loader))
-    # print(batch[0].edge_index)
-    # exit()
-    # print(len(test_loader))
-    # print(len(train_loader))
-    # print(len(val_loader))
-    # print(len(dataset))
-    # exit()
-
-    # instantiate the model 
-    node_out_features = 32
-    edge_out_features = 32
-    list_node_hidden_features = [32]
-    list_edge_hidden_features = [32]
-    k_hop_node = 2 
-    k_hop_edge = 1
-    gat_out_features = 64
-    gat_head = 1
-
+    all_loaders, plot_loader = dataset_splitter(dataset,
+                                    batch_size=config['loader']['batch_size'], 
+                                    split_list=config['loader']['split_list'])
 
     model = GATConvJax(in_channels=dataset[0][0].x.shape[1], 
-                       out_channels=node_out_features, 
-                       heads=2, 
+                       out_channels=config['model']['node_out_features'], 
+                       heads=config['model']['gat_head'], 
                        edge_dim=dataset[0][1].x.shape[1], 
                        rngs=nnx.Rngs(jax.random.key(42)))
     
     print(nnx.display(model))
-
-
-
-
-
     
-
-
-
-if __name__ == "__main__": 
+if __name__ == "__main__":
     main()

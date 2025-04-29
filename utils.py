@@ -16,6 +16,7 @@ import networkx as nx
 from torch_geometric.data import Data, Dataset
 from torch_geometric.loader import DataLoader
 from torch.utils.data import random_split
+import yaml
 
 
 # # Get the parent directory
@@ -23,6 +24,11 @@ from torch.utils.data import random_split
 # sys.path.insert(0, parent_dir)
 parent_dir = os.getcwd()
 
+
+def load_config(): 
+    path = parent_dir + "/config/config.yaml"
+    with open(path, "r") as f: 
+        return yaml.safe_load(f)
 
 def get_device(preferred_device: str = "auto") -> torch.device:
 
