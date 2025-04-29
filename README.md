@@ -1,6 +1,6 @@
 # JAX implementation of Distribution System State-Estimation (Ongoing)
 
-This project is open-source version of a private repository for Distribution Power Sytem State Estimation using [JAX](https://github.com/google/jax). It leverages the rich topological structure of power grids, modeled as simplicial complexes, to improve the accuracy and robustness of state estimation models. 
+This project is **being developed** as an open-source version of a private repository for Distribution Power Sytem State Estimation using [JAX](https://github.com/google/jax). It leverages the rich topological structure of power grids, modeled as simplicial complexes, to improve the accuracy and robustness of state estimation models. 
 
 ## Visualization of the predictions of trained model from *PyTorch implementation* for an MV/LV Network
 
