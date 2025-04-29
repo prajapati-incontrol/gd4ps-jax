@@ -1,6 +1,19 @@
-# JAX implementation of Distribution System State-Estimation 
+# JAX implementation of Distribution System State-Estimation (Ongoing)
 
 This project is open-source version of a private repository for Distribution Power Sytem State Estimation using [JAX](https://github.com/google/jax). It leverages the rich topological structure of power grids, modeled as simplicial complexes, to improve the accuracy and robustness of state estimation models. 
+
+## Visualization of the predictions of trained model for an MV/LV Network
+
+<p align="center">
+  <img src="manimations/p_mw_tag50.gif" width="400" />
+  <img src="manimations/q_mvar_tag50.gif" width="400" />
+</p>
+<p align="center">
+  <img src="manimations/vm_pu_tag50.gif" width="400" />
+  <img src="manimations/va_deg_tag50.gif" width="400" />
+</p>
+
+
 
 ## 🔧 Setup
 
